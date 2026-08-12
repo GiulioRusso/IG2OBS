@@ -1,0 +1,78 @@
+# Template for ig_obsidian_archive.py.
+# Copy this file to config.yaml (same folder) and fill in your own paths —
+# config.yaml is gitignored, config_schema.yaml is the tracked template.
+# Paths are relative to the folder you run the script from (or absolute).
+# The script takes no other argument besides --config.
+
+paths:
+  # Instagram export: the ZIP from "Download your information" (or the
+  # already-extracted folder). Taken as a whole, exactly as downloaded.
+  ig_export: data/ig-export/instagram-yourpage-2026-01-01-xxxxxxxx.zip
+
+  # Folder with Meta Business Suite insight files: one per year (CSV or
+  # XLSX), auto-discovered. Meta caps each export to a short window, so
+  # there's normally one file per year in here.
+  insights_dir: data/insights
+
+  # Output folder (Obsidian vault). Created if missing.
+  out: obsidian-output
+
+  # Folder where the Instagram export gets extracted and where the tag
+  # cache lives. Default: <out>/.ig_archive_cache
+  # cache: cache
+
+  # Taxonomy used for semantic tagging. Default: config/taxonomy.json
+  # Copy config/taxonomy_schema.json there first (see README).
+  # taxonomy: config/taxonomy.json
+
+tiers:
+  # Metric used to pick "top" posts: any column from the insights file
+  # (reach, saves, ...), or "engagement" (likes+comments+shares+saves,
+  # computed automatically), or "engagement_rate" (engagement / reach, as a
+  # percentage — independent of how much the page has grown).
+  metric: engagement
+
+  # Percentile of posts in the "top" tier, per year. 25 = the best 25%.
+  top_percentile: 25
+
+tagging:
+  # Ollama model used for semantic tagging of captions.
+  # Local: any tag pulled with `ollama pull <model>`.
+  # Cloud (needs `ollama signin`): tag with a "-cloud" suffix, e.g.
+  # "qwen3:235b-cloud".
+  # Prefer non-reasoning models (llama3.2, mistral) over reasoning ones
+  # (qwen3, deepseek-r1) — reasoning models are much slower here and can
+  # time out on a batch.
+  model: llama3.2:3b
+
+  # false = skip tagging entirely (no Ollama calls, empty tags).
+  enabled: true
+
+advanced:
+  # These rarely need changing per run (unlike tiers/tagging above). All
+  # optional: comment one out to fall back to the default shown.
+
+  # Max time difference (minutes) allowed when matching an insights row to
+  # a post by publish timestamp.
+  tolerance_minutes: 90
+
+  # Timezone the insights file's publish-time column is in. This is Meta
+  # Business Suite's own export default (Pacific Time), regardless of your
+  # account's timezone. Wrong value here is the #1 cause of a near-zero
+  # join match rate.
+  insights_tz: America/Los_Angeles
+
+  # "year" ranks posts against others from the same calendar year only;
+  # "global" ranks every post against every other post regardless of year.
+  tier_scope: year
+
+  # Only write a note for posts in the "top" tier. false writes a note for
+  # every post regardless of tier.
+  only_top: true
+
+  # Name of the media subfolder inside the output vault.
+  attachments_dirname: attachments
+
+  # Captions sent per Ollama call. Lower it if a model times out on full
+  # batches.
+  batch_size: 15

@@ -1,0 +1,23 @@
+{
+  "_note": "Template for data/taxonomy.json (gitignored, your real taxonomy). Copy this file there and edit freely: the script uses that file both to build the tagging prompt and to validate the model's answers. Keys starting with _ are not axes. 'multi' indicates whether a post can have several values on that axis.",
+
+  "_instructions": [
+    "You are an archivist cataloguing posts from <describe your page's topic>.",
+    "For each caption, assign the correct values for every axis of the taxonomy below.",
+    "",
+    "RULES:",
+    "- Use ONLY the listed values. Never invent new ones.",
+    "- If an axis cannot be determined from the caption, return an empty list [].",
+    "- Ignore hashtags: they carry no information."
+  ],
+
+  "example_axis": {
+    "multi": true,
+    "description": "Replace with a real axis: what this dimension of the taxonomy captures",
+    "values": [
+      "value-one",
+      "value-two",
+      "value-three"
+    ]
+  }
+}
