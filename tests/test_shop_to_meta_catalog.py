@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from shop_to_meta_catalog import (
+    META_CATALOG_FIELDS,
     build_product_info,
     format_price,
     normalize_key,
@@ -50,6 +51,12 @@ class TestJsonLdProduct(unittest.TestCase):
     def test_price_formatting(self) -> None:
         self.assertEqual(format_price(self.info["price"], "USD"), "129.90 USD")
 
+    def test_jsonld_only_fields(self) -> None:
+        self.assertEqual(self.info["gtin"], "0012345678905")
+        self.assertEqual(self.info["color"], "Brown")
+        self.assertEqual(self.info["material"], "Leather")
+        self.assertEqual(self.info["pattern"], "Solid")
+
 
 class TestOpenGraphFallback(unittest.TestCase):
     def setUp(self) -> None:
@@ -82,6 +89,17 @@ class TestHelpers(unittest.TestCase):
             product_id_from_url("https://app.amazecommerce.com/shop/spaceisvintage/vintage-jacket"),
             "vintage-jacket",
         )
+
+    def test_columns_match_metas_official_template(self) -> None:
+        """META_CATALOG_FIELDS must stay in lockstep with Meta's own header,
+        so the CSV this script writes uploads cleanly with no schema drift."""
+        import csv as csv_module
+
+        template = FIXTURES_DIR.parent.parent / "doc" / "meta_catalog_products_template.csv"
+        with open(template, encoding="utf-8") as f:
+            rows = list(csv_module.reader(f))
+        official_header = rows[1]
+        self.assertEqual(META_CATALOG_FIELDS, official_header)
 
 
 if __name__ == "__main__":

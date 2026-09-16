@@ -6,6 +6,7 @@ config/taxonomy.json
 data/
 obsidian-output/
 obsidian-output-*/
+/meta_catalog*.csv
 
 # --- Python ---
 .venv/

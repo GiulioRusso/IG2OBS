@@ -15,7 +15,10 @@ Given the shop's listing page URL (e.g. an Amaze Commerce shop front), it:
        b) Open Graph meta tags (og:title, og:description, og:image, ...) --
           used for link previews on Facebook/WhatsApp;
        c) a blind fallback on the page's visible text, as a last resort;
-  3. writes the result as a CSV with the exact columns Meta requires.
+  3. writes the result as a CSV with the exact columns from Meta's official
+     catalog template (doc/meta_catalog_products_template.csv) -- the 9
+     product fields this script can actually scrape, plus every other
+     column the template defines, left empty when there's no source for it.
 
 A single product failing to parse is logged and skipped -- it never aborts
 the rest of the export.
@@ -105,10 +108,30 @@ CONDITION_MAP = {
     "refurbished": "refurbished",
 }
 
+# Full column set and order from Meta's official template
+# (doc/meta_catalog_products_template.csv). Columns this script actually
+# scrapes are listed in SCRAPED_FIELDS below; every other column is written
+# empty -- Meta accepts a blank optional field, just not a missing column.
 META_CATALOG_FIELDS = [
-    "id", "title", "description", "availability", "condition",
-    "price", "link", "image_link", "brand",
+    "id", "title", "description", "availability", "condition", "price",
+    "link", "image_link", "brand", "google_product_category",
+    "fb_product_category", "quantity_to_sell_on_facebook", "sale_price",
+    "sale_price_effective_date", "item_group_id", "gender", "color", "size",
+    "age_group", "material", "pattern", "shipping", "shipping_weight",
+    "offer_disclaimer", "offer_disclaimer_url", "video[0].url",
+    "video[0].tag[0]", "gtin", "product_tags[0]", "product_tags[1]",
+    "style[0]",
 ]
+
+# Fields this script extracts from the product page. title/description/
+# price/image_link/availability/condition/brand come from any of the three
+# sources; gtin/color/material/pattern are schema.org Product properties
+# only JSON-LD reliably carries, so they're JSON-LD-only (no OG/text
+# equivalent exists).
+SCRAPED_FIELDS = (
+    "title", "description", "price", "image_link", "availability",
+    "condition", "brand", "gtin", "color", "material", "pattern",
+)
 
 
 def log(msg: str) -> None:
@@ -203,6 +226,14 @@ def parse_from_jsonld(product: dict[str, Any]) -> dict[str, Any]:
     if isinstance(brand, dict):
         brand = brand.get("name")
 
+    # GTIN: schema.org splits it by barcode length (gtin8/12/13/14) plus a
+    # generic "gtin" property; take whichever is present, in that order.
+    gtin = None
+    for key in ("gtin13", "gtin", "gtin8", "gtin12", "gtin14"):
+        if product.get(key):
+            gtin = product[key]
+            break
+
     return {
         "title": product.get("name"),
         "description": product.get("description"),
@@ -211,6 +242,10 @@ def parse_from_jsonld(product: dict[str, Any]) -> dict[str, Any]:
         "availability": AVAILABILITY_MAP.get(normalize_key(offers.get("availability"))),
         "condition": CONDITION_MAP.get(normalize_key(product.get("itemCondition"))),
         "brand": brand,
+        "gtin": gtin,
+        "color": product.get("color"),
+        "material": product.get("material"),
+        "pattern": product.get("pattern"),
     }
 
 
@@ -281,7 +316,7 @@ def build_product_info(soup: BeautifulSoup) -> dict[str, Any]:
     ]
 
     info: dict[str, Any] = {}
-    for field in ("title", "description", "price", "image_link", "availability", "condition", "brand"):
+    for field in SCRAPED_FIELDS:
         for source in sources:
             if source.get(field):
                 info[field] = source[field]
@@ -346,7 +381,11 @@ def build_catalog(shop_url: str, currency: str, brand_override: str | None) -> l
             continue
 
         product_id = product_id_from_url(url)
-        rows.append({
+        # Every META_CATALOG_FIELDS column must be present (Meta accepts a
+        # blank optional value, not a missing column); default everything
+        # to "" and only fill in what was actually scraped.
+        row = {field: "" for field in META_CATALOG_FIELDS}
+        row.update({
             "id": product_id,
             "title": info.get("title") or product_id,
             "description": info.get("description") or info.get("title") or product_id,
@@ -356,7 +395,12 @@ def build_catalog(shop_url: str, currency: str, brand_override: str | None) -> l
             "link": url,
             "image_link": info.get("image_link") or "",
             "brand": info.get("brand") or default_brand,
+            "gtin": info.get("gtin") or "",
+            "color": info.get("color") or "",
+            "material": info.get("material") or "",
+            "pattern": info.get("pattern") or "",
         })
+        rows.append(row)
         time.sleep(REQUEST_DELAY)
 
     incomplete = [r["id"] for r in rows if not r["price"] or not r["image_link"]]

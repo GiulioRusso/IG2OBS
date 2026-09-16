@@ -353,15 +353,18 @@ python scripts/shop_to_meta_catalog.py https://app.amazecommerce.com/shop/spacei
 
 ### Output
 
-CSV columns, in Meta's required order:
+Columns match Meta's own template ([`doc/meta_catalog_products_template.csv`](doc/meta_catalog_products_template.csv)) exactly, same order — a test (`test_columns_match_metas_official_template`) fails if the two ever drift apart. That template has 31 columns; only these are actually scraped, the rest are written empty (Meta accepts a blank optional value, just not a missing column):
 
-```
-id, title, description, availability, condition, price, link, image_link, brand
-```
-
-- `price`: formatted as `"12.99 USD"`.
-- `availability`: one of `in stock` / `out of stock` / `preorder` / `available for order`.
-- `condition`: one of `new` / `used` / `refurbished`.
+| Column | Notes |
+|---|---|
+| `id` | product slug, from the URL |
+| `title`, `description`, `image_link` | JSON-LD → Open Graph → visible-text, in that order |
+| `price` | formatted `"12.99 USD"` |
+| `availability` | `in stock` / `out of stock` / `preorder` / `available for order` |
+| `condition` | `new` / `used` / `refurbished` |
+| `link` | the product page URL |
+| `brand` | falls back to `--brand`, then the shop's own slug |
+| `gtin`, `color`, `material`, `pattern` | JSON-LD only — schema.org's `Product` carries these, but Open Graph/visible-text have no equivalent to fall back to |
 
 ### Testing
 
