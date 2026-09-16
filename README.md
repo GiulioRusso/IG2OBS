@@ -2,12 +2,35 @@
 
 # IG2OBS
 
-Turn your own Instagram export into a browsable Obsidian vault: one note per post, with metrics, performance tiers, and AI-assisted tags — built from two official Meta downloads. No app connected to your account, no token, no scraping.
+Two independent scripts, one repo:
+
+- **[IG2OBS — Instagram → Obsidian archive](#ig2obs--instagram--obsidian-archive)**: turns your own Instagram export into a browsable Obsidian vault, with metrics, performance tiers, and AI-assisted tags.
+- **[Shop → Meta Commerce Manager catalog](#shop--meta-commerce-manager-catalog)**: turns your online shop's product listing page into a CSV ready to upload as a Facebook/Instagram product catalog.
+
+They don't share any data or runtime state — each section below is self-contained with its own setup.
 
 <br clear="left">
 
+Both live in `scripts/` and both need:
 
-## How it works
+```bash
+git clone <this-repo>
+cd IG2OBS
+
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+(Python 3.11+.) Each section below adds only what's specific to that script.
+
+---
+
+## IG2OBS — Instagram → Obsidian archive
+
+Turn your own Instagram export into a browsable Obsidian vault: one note per post, with metrics, performance tiers, and AI-assisted tags — built from two official Meta downloads. No app connected to your account, no token, no scraping.
+
+### How it works
 
 1. Instagram's own **"Download your information"** export gives you every post's images and captions.
 2. Meta Business Suite's **content insights** export gives you the metrics (reach, likes, saves, ...) per post.
@@ -42,21 +65,15 @@ flowchart LR
     D -.config.-> M
 ```
 
-## Requirements
+### Requirements
 
-- Python 3.11+
 - [Ollama](https://ollama.com), running locally (free) — only needed for semantic tagging
 
-## Setup
+### Setup
+
+On top of the [repo-wide setup](#ig2obs) above:
 
 ```bash
-git clone <this-repo>
-cd IG2OBS
-
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
 # only if your insights export is .xlsx (not needed for .csv):
 pip install openpyxl
 
@@ -72,9 +89,9 @@ cp config/config_schema.yaml config/config.yaml
 cp config/taxonomy_schema.json config/taxonomy.json
 ```
 
-## Getting the data
+### Getting the data
 
-### 1. Instagram export (required)
+#### 1. Instagram export (required)
 
 From `accountscenter.instagram.com`: **Settings → Accounts Center → Your information and permissions → Download your information → Download or transfer information**, pick the account, then **Some of your information → Content**.
 
@@ -90,7 +107,7 @@ Meta takes a few hours to a couple of days and emails you a download link (it ex
 
 > **Large accounts may get an incomplete or split export.** If your notes end up mostly from one time period, the ZIP is likely missing media for the rest — check for multiple parts, or a separate media-only download. To merge one in: just add those files into the ZIP itself (any folder inside it works — the script searches the whole archive by filename if the exact path doesn't match) and keep `paths.ig_export` pointing at that ZIP. No need to extract anything by hand.
 
-### 2. Insights export (optional)
+#### 2. Insights export (optional)
 
 Without this you still get the full archive, just without metrics or tiers.
 
@@ -100,9 +117,9 @@ Meta caps this export to a short window (usually a year) — do one export per y
 
 The only required column is the publish date — the script recognizes several common header spellings; rename it to `Publish time` if yours is unusual.
 
-## Configuration
+### Configuration
 
-### Command line
+#### Command line
 
 The script takes exactly one flag:
 
@@ -110,7 +127,7 @@ The script takes exactly one flag:
 |---|---|---|
 | `--config PATH` | `config/config.yaml` | Which YAML config file to load. Everything else is read from that file. |
 
-### `config/config.yaml`
+#### `config/config.yaml`
 
 Start from `config/config_schema.yaml` (`cp config/config_schema.yaml config/config.yaml`). Four sections, every field below:
 
@@ -160,7 +177,7 @@ Two more knobs are env vars, not YAML, since they're about *where Ollama lives* 
 
 `config/config_schema.yaml` and `config/taxonomy_schema.json` are the tracked templates — edit those (not your personal `config/config.yaml` / `config/taxonomy.json`) if you're contributing a default change.
 
-### `config/taxonomy.json`
+#### `config/taxonomy.json`
 
 Start from `config/taxonomy_schema.json` (`cp config/taxonomy_schema.json config/taxonomy.json`). Used both to build the tagging prompt and to validate the model's answers — any value the model returns that isn't listed here gets dropped.
 
@@ -178,7 +195,7 @@ Each axis is an object with:
 | `description` | no | `""` | One-line explanation of what this axis captures, shown to the model in the prompt. |
 | `multi` | no | `false` | Whether a post can have more than one value on this axis. `false` keeps at most the first value the model returns. |
 
-## Run
+### Run
 
 The script takes only `--config`; every other choice (tag or not, which model, local or cloud) is made in `config.yaml`, not on the command line.
 
@@ -186,13 +203,13 @@ The script takes only `--config`; every other choice (tag or not, which model, l
 
 ```bash
 source .venv/bin/activate
-python ig_obsidian_archive.py
+python scripts/ig_obsidian_archive.py
 ```
 
 **A different config file** (e.g. a second Instagram account):
 
 ```bash
-python ig_obsidian_archive.py --config config/other-account.yaml
+python scripts/ig_obsidian_archive.py --config config/other-account.yaml
 ```
 
 **Without semantic tagging** (fastest, no Ollama needed at all) — set in `config.yaml`:
@@ -203,7 +220,7 @@ tagging:
 ```
 
 ```bash
-python ig_obsidian_archive.py
+python scripts/ig_obsidian_archive.py
 ```
 
 **With tagging, local model** — a model pulled with Ollama running on your own machine, free, no account needed:
@@ -217,7 +234,7 @@ tagging:
 ```bash
 ollama serve                 # keep running in another terminal
 ollama pull llama3.2:3b      # once
-python ig_obsidian_archive.py
+python scripts/ig_obsidian_archive.py
 ```
 
 **With tagging, Ollama cloud** — the model runs on Ollama's servers, still free, no local GPU/server needed; the model tag just needs a `-cloud` suffix:
@@ -230,14 +247,14 @@ tagging:
 
 ```bash
 ollama signin                # once, opens a browser to log in
-python ig_obsidian_archive.py
+python scripts/ig_obsidian_archive.py
 ```
 
 Tags are cached in `<out>/.ig_archive_cache/tags_cache.json` (keyed by caption content, not by post), so rerunning after a config tweak doesn't re-tag posts it already processed — only new or edited captions hit Ollama. The export itself is a snapshot, not a live sync — to pick up new posts, redo the download and rerun.
 
 Every run writes a **fresh, timestamped** output folder (`obsidian-output-20260812-153000/`, see [Output](#output)) so an old archive is never silently overwritten; the extracted export and the tag cache, on the other hand, are reused across runs so reruns stay fast.
 
-## How notes are composed
+### How notes are composed
 
 One post → one Markdown note, written by `write_notes()`:
 
@@ -249,7 +266,7 @@ One post → one Markdown note, written by `write_notes()`:
 
 Alongside the posts, `write_index()` generates `Post Archive.md` — a single note with ready-to-run Dataview queries (best of each year, coverage per taxonomy axis, content gaps, old-but-strong posts worth reposting) that adapt automatically to whatever axes your `taxonomy.json` defines.
 
-## Inspecting the output in Obsidian
+### Inspecting the output in Obsidian
 
 1. Open Obsidian → **Open folder as vault** → pick the timestamped `obsidian-output-.../` folder from this run.
 2. Install the **Dataview** plugin (Settings → Community plugins → Browse → search "Dataview" → Install → Enable). The queries in `Post Archive.md` don't render without it.
@@ -258,7 +275,7 @@ Alongside the posts, `write_index()` generates `Post Archive.md` — a single no
 5. Use the tag pane (or `#axis/value` style search) to filter by any taxonomy axis — every axis from `taxonomy.json` becomes a real Obsidian tag.
 6. If `review.csv` was generated, open it in a spreadsheet app; the corresponding notes carry a visible warning callout so they're easy to spot inside the vault too.
 
-## Output
+### Output
 
 ```
 obsidian-output-20260812-153000/   ← one fresh folder per run, timestamped
@@ -293,13 +310,70 @@ tags:
 
 **The join can get it wrong.** Export and insights share no ID, only a timestamp. Ambiguous matches aren't guessed — they land in `review.csv` with a warning on the affected note, metrics left empty.
 
-## Customizing the tag taxonomy
+### Customizing the tag taxonomy
 
 Schema and fields are in the `config/taxonomy.json` reference above. No code changes needed — the Dataview queries in the index note adapt automatically to whatever axes it finds. A few practical tips:
 
 - A value earns its place if you'd actually filter by it one day; a 40-value axis is one nobody remembers to use.
 - If the model keeps getting a case wrong, add a rule to `_instructions` instead of hand-fixing notes.
 - After editing values, delete `<out>/.ig_archive_cache/tags_cache.json` to force a re-tag — otherwise already-tagged posts keep their old tags.
+
+---
+
+## Shop → Meta Commerce Manager catalog
+
+`scripts/shop_to_meta_catalog.py` turns your online shop's product listing page into a CSV in the format Meta Commerce Manager expects for a Facebook/Instagram product catalog. Independent of the IG2OBS archiver above — no Instagram export involved.
+
+### How it works
+
+1. Finds every product link on the shop's listing page.
+2. For each product, extracts title, description, price, image, availability, condition and brand, trying in order:
+   - **JSON-LD** structured data (schema.org `Product`) — most reliable, nearly every shop platform embeds it for SEO and social previews;
+   - **Open Graph** meta tags (`og:title`, `og:description`, `og:image`, ...) — used for link previews on Facebook/WhatsApp;
+   - a blind **visible-text** fallback, as a last resort.
+3. Writes the result as a CSV. A product that fails to parse is logged and skipped — it never aborts the rest of the run.
+
+### Requirements & setup
+
+Nothing beyond the [repo-wide setup](#ig2obs) above — `requests` and `beautifulsoup4` are already in `requirements.txt`.
+
+### Run
+
+```bash
+source .venv/bin/activate
+python scripts/shop_to_meta_catalog.py https://app.amazecommerce.com/shop/spaceisvintage
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `shop_url` (positional) | — | URL of the shop's product listing page |
+| `--out PATH` | `./meta_catalog.csv` | Output CSV path |
+| `--brand NAME` | last path segment of `shop_url` | Used when a product page doesn't declare its own brand |
+| `--currency CODE` | `USD` | ISO currency code appended to each price (`"12.99 USD"`) |
+
+### Output
+
+CSV columns, in Meta's required order:
+
+```
+id, title, description, availability, condition, price, link, image_link, brand
+```
+
+- `price`: formatted as `"12.99 USD"`.
+- `availability`: one of `in stock` / `out of stock` / `preorder` / `available for order`.
+- `condition`: one of `new` / `used` / `refurbished`.
+
+### Testing
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Runs against fixture HTML (`tests/fixtures/`), no network — one fixture with full JSON-LD `Product` data, one with only Open Graph tags.
+
+### Known limitation
+
+This hasn't been run against the real shop yet — the parsing follows patterns common to most e-commerce platforms. If a field comes out empty or wrong, share the HTML (or just the `<script type="application/ld+json">` block) of one product page and the parsing gets fixed.
 
 ## License
 
